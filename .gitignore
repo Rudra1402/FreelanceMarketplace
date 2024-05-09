@@ -1,0 +1,12 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+.env
+env/
+env
+__pycache__
+*.pyc
+env/
+db.sqlite3
+venv/
+inference.py
