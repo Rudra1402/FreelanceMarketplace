@@ -1,4 +1,5 @@
 from datetime import datetime
+from ntpath import join
 from flask import Flask, jsonify, session, request
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -74,12 +75,23 @@ class Proposal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     marketplaceItemId = db.Column(db.Integer, db.ForeignKey(
         'marketplace_item.id'), nullable=False)
-    marketplaceItem = db.relationship('MarketplaceItem', backref='proposals')
+    marketplaceItem = db.relationship(
+        'MarketplaceItem', backref='proposals', foreign_keys=[marketplaceItemId])
     userId = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref='proposals')
+    user = db.relationship('User', backref='proposals', foreign_keys=[userId])
     proposalText = db.Column(db.String(512), nullable=False)
     isAccepted = db.Column(db.Boolean, default=False)
     createdAt = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'marketplaceItemId': self.marketplaceItem.to_dict(),
+            'userId': self.user.to_dict(),
+            'proposalText': self.proposalText,
+            'isAccepted': self.isAccepted,
+            'createdAt': self.createdAt.isoformat()
+        }
 
 
 with app.app_context():
@@ -247,13 +259,17 @@ def users():
 
 @app.route('/marketplace_items', methods=['GET'])
 def getMarketplaceItems():
-    mpItems = MarketplaceItem.query.join(
-        MarketplaceItem.user, isouter=True).all()
+    try:
+        mpItems = MarketplaceItem.query.join(
+            MarketplaceItem.user, isouter=True).all()
 
-    if len(mpItems) == 0:
-        return jsonify(message='No marketplace items found!'), 404
+        if len(mpItems) == 0:
+            return jsonify(message='No marketplace items found!'), 404
 
-    return jsonify([item.to_dict() for item in mpItems]), 200
+        return jsonify([item.to_dict() for item in mpItems]), 200
+    except Exception as e:
+        print(str(e))
+        return jsonify(message='Some error occurred!'), 500
 
 
 @app.route('/marketplace_item', methods=['POST'])
@@ -278,6 +294,44 @@ def setMarketplaceItem():
         db.session.commit()
 
         return jsonify(message='Marketplace Item created successfully!'), 201
+    except Exception as e:
+        print(str(e))
+        return jsonify(message='Some error occurred!'), 500
+
+
+@app.route('/proposals', methods=['GET'])
+def getProposals():
+    try:
+        proposals = Proposal.query.join(Proposal.marketplaceItem, isouter=True).join(
+            Proposal.user, isouter=True).all()
+
+        if len(proposals) == 0:
+            return jsonify(message='No proposals found!'), 404
+
+        return jsonify([p.to_dict() for p in proposals]), 200
+    except Exception as e:
+        print(str(e))
+        return jsonify(message='Some error occurred!'), 500
+
+
+@app.route('/proposal', methods=['POST'])
+def setProposal():
+    try:
+        if 'userid' not in loggedInUser:
+            return jsonify(message='User not authenticated!'), 404
+
+        data = request.get_json()
+        marketplaceItem = data['marketplaceItem']
+        userId = data['userId']
+        proposalText = data['proposalText']
+
+        proposal = Proposal(
+            marketplaceItem=marketplaceItem, userId=userId, proposalText=proposalText)
+
+        db.session.add(proposal)
+        db.session.commit()
+
+        return jsonify(message='Proposal sent successfully!'), 201
     except Exception as e:
         print(str(e))
         return jsonify(message='Some error occurred!'), 500
