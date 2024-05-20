@@ -256,6 +256,18 @@ def users():
         return jsonify(message='Some error occurred!'), 500
 
 
+@app.route('/users/<int:user_id>', methods=['GET'])
+def getUserById(user_id):
+    try:
+        user = User.query.filter_by(id=user_id).first()
+        if not user:
+            return jsonify(message='User does not exist!'), 404
+        return jsonify(user.to_dict())
+    except Exception as e:
+        print(str(e))
+        return jsonify(message='Some error occurred!'), 500
+
+
 @app.route('/marketplace_items', methods=['GET'])
 def getMarketplaceItems():
     try:
