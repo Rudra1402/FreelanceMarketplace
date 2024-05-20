@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask import Flask, jsonify, session, request
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.sqlite import JSON
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -39,6 +40,7 @@ class MarketplaceItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(80), nullable=False)
     description = db.Column(db.String(512), nullable=False)
+    skills = db.Column(JSON, nullable=False, default=[])
     price = db.Column(db.Integer, nullable=False)
     isHourly = db.Column(db.Boolean, nullable=False)
     minCreds = db.Column(db.Integer, nullable=False)
@@ -57,6 +59,7 @@ class MarketplaceItem(db.Model):
             'id': self.id,
             'title': self.title,
             'description': self.description,
+            'skills': self.skills,
             'price': self.price,
             'isHourly': self.isHourly,
             'minCreds': self.minCreds,
@@ -319,6 +322,7 @@ def setMarketplaceItem():
         data = request.get_json()
         title = data['title']
         description = data['description']
+        skills = data['skills']
         price = data['price']
         isHourly = data['isHourly']
         minCreds = data['minCreds']
@@ -326,7 +330,7 @@ def setMarketplaceItem():
         hiredByUserId = loggedInUser.get('userid')
 
         newMarketplaceItem = MarketplaceItem(
-            title=title, description=description, price=price, isHourly=isHourly, minCreds=minCreds, maxCreds=maxCreds, hiredByUserId=hiredByUserId)
+            title=title, description=description, skills=skills, price=price, isHourly=isHourly, minCreds=minCreds, maxCreds=maxCreds, hiredByUserId=hiredByUserId)
 
         db.session.add(newMarketplaceItem)
         db.session.commit()
