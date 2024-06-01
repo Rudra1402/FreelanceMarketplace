@@ -21,6 +21,7 @@ class User(db.Model):
     creds = db.Column(db.Integer, default=40)
     isClient = db.Column(db.Boolean, nullable=False)
     createdAt = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    rating = db.Column(db.Float, nullable=True)
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -32,7 +33,8 @@ class User(db.Model):
             'email': self.email,
             'creds': self.creds,
             'isClient': self.isClient,
-            'createdAt': self.createdAt.isoformat()
+            'createdAt': self.createdAt.isoformat(),
+            'rating': self.rating
         }
 
 
@@ -92,6 +94,25 @@ class Proposal(db.Model):
             'userId': self.user.to_dict(),
             'proposalText': self.proposalText,
             'isAccepted': self.isAccepted,
+            'createdAt': self.createdAt.isoformat()
+        }
+
+
+class Rating(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    rater_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    ratee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    rating = db.Column(db.Float, nullable=False)
+    comment = db.Column(db.String(512), nullable=True)
+    createdAt = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'rater_id': self.rater_id,
+            'ratee_id': self.ratee_id,
+            'rating': self.rating,
+            'comment': self.comment,
             'createdAt': self.createdAt.isoformat()
         }
 
@@ -419,6 +440,24 @@ def setProposal():
     except Exception as e:
         print(str(e))
         return jsonify(message='Some error occurred!'), 500
+
+
+@app.route('/rate', methods=['POST'])
+def rate_user():
+    data = request.get_json()
+    try:
+        rater_id=data['rater_id'],
+        ratee_id=data['ratee_id'],
+        rating=data['rating'],
+        comment=data.get('comment'),
+
+        rating = Rating(rater_id=rater_id, ratee_id=ratee_id, rating=rating, comment=comment)
+
+        db.session.add(rating)
+        db.session.commit()
+        return jsonify(rating.to_dict()), 201
+    except Exception as e:
+        return jsonify({"error": "An error occurred"}), 500
 
 
 if __name__ == '__main__':
