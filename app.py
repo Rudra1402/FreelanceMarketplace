@@ -1,4 +1,5 @@
 from datetime import datetime
+import email
 from flask import Flask, jsonify, session, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.sqlite import JSON
@@ -215,6 +216,10 @@ def signup():
         user_password = data['password']
         user_isClient = data['isClient']
 
+        existingUser = User.query.filter_by(email=user_email).first()
+        if existingUser:
+            return jsonify(message="Email already exists!"), 422
+
         hashed_password = generate_password_hash(user_password)
 
         user = User(username=user_name, email=user_email,
@@ -272,7 +277,8 @@ def users():
                 'email': user.email,
                 'creds': user.creds,
                 'isClient': user.isClient,
-                'createdAt': user.createdAt.isoformat()
+                'createdAt': user.createdAt.isoformat(),
+                'rating': user.rating
             })
         return jsonify(user_data), 200
     except Exception as e:
@@ -427,7 +433,7 @@ def setProposal():
 
         data = request.get_json()
         marketplaceItemId = data['marketplaceItemId']
-        userId = data['userId']
+        userId = loggedInUser['userid']
         proposalText = data['proposalText']
 
         proposal = Proposal(
@@ -455,8 +461,17 @@ def rate_user():
 
         db.session.add(rating)
         db.session.commit()
+
+        ratee = User.query.get(ratee_id)
+        ratings = Rating.query.filter_by(ratee_id=ratee_id).all()
+        if ratings:
+            average_rating = sum(r.rating for r in ratings) / len(ratings)
+            ratee.rating = average_rating
+            db.session.commit()
+
         return jsonify(rating.to_dict()), 201
     except Exception as e:
+        print(str(e))
         return jsonify({"error": "An error occurred"}), 500
 
 
