@@ -84,6 +84,7 @@ class Proposal(db.Model):
         'MarketplaceItem', backref='proposals', foreign_keys=[marketplaceItemId])
     userId = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='proposals', foreign_keys=[userId])
+    credsUsed = db.Column(db.Integer, nullable=False)
     proposalText = db.Column(db.String(512), nullable=False)
     isAccepted = db.Column(db.Boolean, default=False)
     createdAt = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -368,6 +369,22 @@ def setMarketplaceItem():
         return jsonify(message='Some error occurred!'), 500
 
 
+@app.route('/marketplace_items/<int:item_id>', methods=['DELETE'])
+def delete_mpItem(item_id):
+    try:
+        mpItem = MarketplaceItem.query.get(item_id)
+        if mpItem is None:
+            return jsonify(message="Marketplace Item not found!"), 404
+
+        db.session.delete(mpItem)
+        db.session.commit()
+
+        return jsonify(message="Marketplace Item deleted successfully"), 200
+    except Exception as e:
+        print(str(e))
+        return jsonify(message="An error occurred"), 500
+
+
 @app.route('/proposals', methods=['GET'])
 def getProposals():
     try:
@@ -434,12 +451,30 @@ def setProposal():
         data = request.get_json()
         marketplaceItemId = data['marketplaceItemId']
         userId = loggedInUser['userid']
+        credsUsed = data['credsUsed']
         proposalText = data['proposalText']
 
+        mpItem = MarketplaceItem.query.filter_by(id=marketplaceItemId).first()
+        if not mpItem:
+            return jsonify(message="Marketplace Item not found!"), 404
+
+        userCreds = User.query.filter_by(id=loggedInUser['userid']).first()
+        if userCreds.creds < mpItem.minCreds:
+            return jsonify(message="You don't have enough credits!")
+
+        if credsUsed < mpItem.minCreds:
+            return jsonify(message="You can't bid with less than min credits!")
+
+        if credsUsed > mpItem.maxCreds:
+            return jsonify(message="You can't bid with more than max credits!")
+
         proposal = Proposal(
-            marketplaceItemId=marketplaceItemId, userId=userId, proposalText=proposalText)
+            marketplaceItemId=marketplaceItemId, userId=userId, credsUsed=credsUsed, proposalText=proposalText)
 
         db.session.add(proposal)
+        db.session.commit()
+
+        userCreds.creds -= credsUsed
         db.session.commit()
 
         return jsonify(message='Proposal sent successfully!'), 201
@@ -448,16 +483,33 @@ def setProposal():
         return jsonify(message='Some error occurred!'), 500
 
 
+@app.route('/proposals/<int:proposal_id>', methods=['DELETE'])
+def delete_proposal(proposal_id):
+    try:
+        proposal = Proposal.query.get(proposal_id)
+        if proposal is None:
+            return jsonify(message="Proposal not found!"), 404
+
+        db.session.delete(proposal)
+        db.session.commit()
+
+        return jsonify(message="Proposal deleted successfully"), 200
+    except Exception as e:
+        print(str(e))
+        return jsonify(message="An error occurred"), 500
+
+
 @app.route('/rate', methods=['POST'])
 def rate_user():
     data = request.get_json()
     try:
-        rater_id=data['rater_id'],
-        ratee_id=data['ratee_id'],
-        rating=data['rating'],
-        comment=data.get('comment'),
+        rater_id = data['rater_id'],
+        ratee_id = data['ratee_id'],
+        rating = data['rating'],
+        comment = data.get('comment'),
 
-        rating = Rating(rater_id=rater_id, ratee_id=ratee_id, rating=rating, comment=comment)
+        rating = Rating(rater_id=rater_id, ratee_id=ratee_id,
+                        rating=rating, comment=comment)
 
         db.session.add(rating)
         db.session.commit()
