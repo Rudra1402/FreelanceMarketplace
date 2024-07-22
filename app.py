@@ -527,5 +527,11 @@ def rate_user():
         return jsonify({"error": "An error occurred"}), 500
 
 
+@app.route('/time', methods=['GET'])
+def get_time():
+    current_time = datetime.now().isoformat()
+    return jsonify({"current_time": current_time})
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
