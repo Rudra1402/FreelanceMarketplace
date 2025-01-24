@@ -2,8 +2,8 @@
 /shelf/
 /workspace.xml
 .env
-env/
-env
+venv/
+venv
 __pycache__
 *.pyc
 env/
