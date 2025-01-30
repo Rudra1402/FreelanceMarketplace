@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, BrowserRouter as Router } from 'react-router-dom';
 import Home from './pages/Home';
 import Marketplace from './pages/Marketplace';
+import NewMarketplaceItemForm from './components/Marketplace/NewMarketplaceItemForm';
 import Proposals from './pages/Proposals';
 import Ratings from './pages/Ratings';
 import UserProfile from './pages/UserProfile';
@@ -14,6 +15,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/marketplace/new-item" element={<NewMarketplaceItemForm />} />
           <Route path="/proposals" element={<Proposals />} />
           <Route path="/ratings" element={<Ratings />} />
           <Route path="/profile" element={<UserProfile />} />
